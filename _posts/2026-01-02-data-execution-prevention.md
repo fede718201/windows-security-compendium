@@ -1,6 +1,6 @@
 ---
 layout: post
-slug: N/A
+slug: dep
 title: Data Execution Prevention (DEP)
 ---
 
