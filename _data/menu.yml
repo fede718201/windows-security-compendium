@@ -4,8 +4,8 @@
 entries:
   - title: info
     entries:
-      - title: a comprehensive deep-dive into Windows security mechanisms. 
-      - title: "used by <a href='https://fede718201.github.io/windows-security-compendium/'>fede718201.github.io</a>"
+      - title:  deep dive into os, hypervisor & browser internals & exploitation.
+      - title: "used by <a href='https://fede718201.github.io/'>fede718201.github.io</a>"
 
   - title: all posts
     post_list:
