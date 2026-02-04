@@ -1,5 +1,5 @@
-title: windows security compendium # name of the site
-author: Fede & M26 # name of site's author
+title: Fede's Security Blog
+author: Fede # name of site's author
 email: N/A # email of site's author
 url: https://fede718201.github.io/ # root address of the site
 baseurl: "" # subpath of the site, e.g. "/blog" (leave it blank "" if you're site shouldn't use a subpath)
