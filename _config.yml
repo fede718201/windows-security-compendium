@@ -1,10 +1,10 @@
-title: Fede's Security Blog
+title: Windows en Détail
 author: Fede # name of site's author
 email: N/A # email of site's author
 url: https://fede718201.github.io/ # root address of the site
 baseurl: "" # subpath of the site, e.g. "/blog" (leave it blank "" if you're site shouldn't use a subpath)
 description: > # description of the site (multiple lines allowed)
-   Deep Dive into OS, Hypervisor & Browser Internals & Exploitation.
+   Analyses techniques approfondies de l'écosystème Windows.
 
 permalink: /:slug.html
 
