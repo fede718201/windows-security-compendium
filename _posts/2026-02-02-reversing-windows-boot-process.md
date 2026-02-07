@@ -18,9 +18,66 @@ This is where the kernel takes over. `KiSystemStartup` is the entry point of `nt
 
 ![1](/assets/images/1.png)
 
-The prologue opens with `sub rsp, 0x38`, which allocates 56 bytes on the stack. This is standard for Windows x64 functions. 32 of those bytes are the shadow space, a mandatory region that the calling convention reserves so the callee can spill the four register-passed arguments (`rcx`, `rdx`, `r8`, `r9`) if it needs to. The remaining 24 bytes are for local variables. Even though `KiSystemStartup` only takes one argument, the shadow space is always 32 bytes because it is the callee's job to provide it for any functions it calls downstream.
+The prologue opens with `sub rsp, 0x38`, which allocates 56 bytes on the stack. This is standard for Windows x64 functions. 32 of those bytes are the shadow space, a mandatory region that the calling convention reserves so the callee can spill the four register-passed arguments (`rcx`, `rdx`, `r8`, `r9`) if it needs to. The remaining 24 bytes are for local variables. Even though `KiSystemStartup` only takes one argument, the shadow space is always 32 bytes because it is the callee's job to provide it for any functions it calls downstream. Below is a representation of the current stack.
+
+```
+         CALLER FRAME (winload.efi)
+        +----------------------------+
+        |  shadow R9   (unused)      |  RSP+0x58
+        +----------------------------+
+        |  shadow R8   (unused)      |  RSP+0x50
+        +----------------------------+
+        |  shadow RDX  (unused)      |  RSP+0x48
+        +----------------------------+
+        |  shadow RCX  (LoaderBlock) |  RSP+0x40
+        +----------------------------+
+        |  return address            |  RSP+0x38   <-- pushed by "call KiSystemStartup"
+        +============================+
+         KiSystemStartup FRAME
+         sub rsp, 0x38 (56 bytes)
+        +----------------------------+
+        |  saved R15                 |  RSP+0x30   <-- mov [rsp+0x30], r15
+        +----------------------------+
+        |  local / scratch           |  RSP+0x28
+        +----------------------------+
+        |  local / scratch           |  RSP+0x20
+        +- - - - - - - - - - - - - - +
+        |                            |  RSP+0x18   \
+        +  shadow space for          +              |
+        |  downstream callees        |  RSP+0x10    | 0x20 (32 bytes)
+        +  (RCX/RDX/R8/R9 homes)     +              |
+        |                            |  RSP+0x08   /
+        +----------------------------+
+        |                            |  RSP+0x00   <-- RSP after prologue
+        +----------------------------+                 R15 also points here
+
+         stack grows downward
+```
 
 The next instruction, `mov qword [rsp+0x30], r15`, saves the contents of `r15` onto the stack. `r15` is a non-volatile register in the Windows x64 ABI, meaning any function that uses it must restore its original value before returning. The kernel is about to repurpose `r15` for its own use, so it preserves the caller's value at offset `rsp+0x30`, which is the last 8-byte slot in the allocated frame (0x38 minus 0x8). This is followed by `mov r15, rsp`, which copies the current stack pointer into `r15`. This effectively turns `r15` into a frame pointer. The function can now reference its local variables and saved state relative to `r15` regardless of any subsequent stack manipulation. This is a pattern you see frequently in kernel code where the stack pointer might be modified by nested calls or interrupt handling, and having a stable reference point matters.
+
+```
+KiSystemStartup FRAME
+        +----------------------------+
+        |  old R15 value             |  RSP+0x30   <-- saved here
+        +----------------------------+
+        |  (uninitialized)           |  RSP+0x28
+        +----------------------------+
+        |  (uninitialized)           |  RSP+0x20
+        +- - - - - - - - - - - - - - +
+        |                            |  RSP+0x18
+        +  shadow space for          +
+        |  downstream callees        |  RSP+0x10
+        +                            +
+        |                            |  RSP+0x08
+        +----------------------------+
+        |                            |  RSP+0x00   <-- RSP = R15
+        +----------------------------+
+
+         RCX still holds LoaderBlock
+         R15 = RSP (frame pointer from now on)
+         stack grows downward
+```
 
 Then comes the most important line in this prologue: `mov qword [rel KeLoaderBlock], rcx`. The `rcx` register holds the first argument to the function, which is the `LoaderBlock` pointer. This instruction stores that pointer into `KeLoaderBlock`, a global variable inside `ntoskrnl.exe`. This is a critical design decision. `winload.efi` spent a significant amount of effort constructing the `LOADER_PARAMETER_BLOCK`, filling it with the physical memory map, the list of every loaded module, the initial process and thread structures, the SYSTEM registry hive, boot flags, TPM entropy, ELAM data, and more. By saving the pointer globally, the kernel makes all of that information available to every subsystem that initializes after this point. Throughout Phase 0 initialization, you will see function after function either taking `KeLoaderBlock` as an argument or reading it directly. It is the single source of truth about the state of the machine at handoff.
 
