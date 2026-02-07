@@ -16,7 +16,7 @@ From there it is the Windows bootloader chain. `bootmgfw.efi` reads the BCD stor
 
 This is where the kernel takes over. `KiSystemStartup` is the entry point of `ntoskrnl.exe`, the very first kernel function that executes after `winload.efi` transfers control. Everything before this point was firmware or bootloader code. From here on, the kernel owns the machine. The function signature is simple: a single `void*` parameter called `LoaderBlock`, passed in `rcx` per the Windows x64 calling convention.
 
-<img width="1890" height="469" alt="image" src="https://github.com/user-attachments/assets/19788cd3-7af8-445c-ba97-615c7de91ffd" />
+![1](/assets/images/1.png)
 
 The prologue opens with `sub rsp, 0x38`, which allocates 56 bytes on the stack. This is standard for Windows x64 functions. 32 of those bytes are the shadow space, a mandatory region that the calling convention reserves so the callee can spill the four register-passed arguments (`rcx`, `rdx`, `r8`, `r9`) if it needs to. The remaining 24 bytes are for local variables. Even though `KiSystemStartup` only takes one argument, the shadow space is always 32 bytes because it is the callee's job to provide it for any functions it calls downstream.
 
